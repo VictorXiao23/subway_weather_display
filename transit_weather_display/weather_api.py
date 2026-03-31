@@ -1,53 +1,55 @@
-"""Mock weather data provider."""
+"""Live weather data provider."""
 
 from __future__ import annotations
 
+import gzip
 import json
+import os
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 try:
-    from .config import (
-        MAX_FORECAST_HOURS,
-        METEOSOURCE_API_KEY,
-        METEOSOURCE_BASE_URL,
-        WEATHER_LANGUAGE,
-        WEATHER_LAT,
-        WEATHER_LON,
-        WEATHER_TIMEZONE,
-        WEATHER_UNITS,
-    )
+    from .config import MAX_FORECAST_HOURS
     from .models import WeatherData
 except ImportError:
-    from config import (
-        MAX_FORECAST_HOURS,
-        METEOSOURCE_API_KEY,
-        METEOSOURCE_BASE_URL,
-        WEATHER_LANGUAGE,
-        WEATHER_LAT,
-        WEATHER_LON,
-        WEATHER_TIMEZONE,
-        WEATHER_UNITS,
-    )
+    from config import MAX_FORECAST_HOURS
     from models import WeatherData
 
 
-def _mock_weather_data() -> WeatherData:
-    """Return fallback weather data when the live API is unavailable."""
+METEOSOURCE_BASE_URL = "https://www.meteosource.com/api/v1/free/point"
+METEOSOURCE_API_KEY = os.getenv("METEOSOURCE_API_KEY", "")
+WEATHER_LAT = os.getenv("WEATHER_LAT", "40.6782")
+WEATHER_LON = os.getenv("WEATHER_LON", "-73.9442")
+WEATHER_TIMEZONE = os.getenv("WEATHER_TIMEZONE", "America/New_York")
+WEATHER_LANGUAGE = os.getenv("WEATHER_LANGUAGE", "en")
+WEATHER_UNITS = os.getenv("WEATHER_UNITS", "us")
+LAST_WEATHER_ERROR = ""
+
+
+def _unavailable_weather_data() -> WeatherData:
+    """Return a neutral weather state when live data is unavailable."""
 
     return WeatherData(
-        temp=36,
-        condition="Cloudy",
-        hourly=[33, 33, 32, 32, 31, 31, 30, 30],
+        temp=None,
+        condition="Unavailable",
+        hourly=[],
     )
+
+
+def _set_last_weather_error(message: str) -> None:
+    """Store the most recent weather fetch failure for debugging."""
+
+    global LAST_WEATHER_ERROR
+    LAST_WEATHER_ERROR = message
 
 
 def _build_request_url() -> str:
     """Build the Meteosource point forecast URL."""
 
     params = {
+        "key": METEOSOURCE_API_KEY,
         "lat": WEATHER_LAT,
         "lon": WEATHER_LON,
         "sections": "current,hourly",
@@ -66,14 +68,16 @@ def _parse_weather_payload(payload: dict[str, Any]) -> WeatherData:
     hourly_data = hourly_section.get("data", [])
 
     current_temp = round(current.get("temperature", 0))
-    condition = current.get("summary") or current.get("icon") or "Unavailable"
+    condition = (
+        current.get("summary")
+        or current.get("weather")
+        or current.get("icon")
+        or "Unavailable"
+    )
     hourly_temps = [
         round(entry.get("temperature", current_temp))
         for entry in hourly_data[:MAX_FORECAST_HOURS]
     ]
-
-    if not hourly_temps:
-        hourly_temps = _mock_weather_data().hourly[:MAX_FORECAST_HOURS]
 
     return WeatherData(
         temp=current_temp,
@@ -91,22 +95,36 @@ def _fetch_live_weather() -> WeatherData:
     request = Request(
         _build_request_url(),
         headers={
-            "X-API-Key": METEOSOURCE_API_KEY,
             "Accept": "application/json",
-            "Accept-Encoding": "gzip",
             "User-Agent": "transit-weather-display/1.0",
         },
     )
 
     with urlopen(request, timeout=10) as response:
-        payload = json.load(response)
+        raw_body = response.read()
+        if response.headers.get("Content-Encoding", "").lower() == "gzip":
+            raw_body = gzip.decompress(raw_body)
+        payload = json.loads(raw_body.decode("utf-8"))
     return _parse_weather_payload(payload)
 
 
 def get_weather_data() -> WeatherData:
-    """Return live weather data when configured, otherwise fall back to mock data."""
+    """Return live weather data when configured, otherwise mark weather unavailable."""
 
     try:
-        return _fetch_live_weather()
-    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        return _mock_weather_data()
+        weather = _fetch_live_weather()
+        _set_last_weather_error("")
+        return weather
+    except HTTPError as exc:
+        try:
+            error_body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            error_body = ""
+        _set_last_weather_error(f"HTTP {exc.code}: {error_body or exc.reason}")
+        return _unavailable_weather_data()
+    except URLError as exc:
+        _set_last_weather_error(f"Network error: {exc.reason}")
+        return _unavailable_weather_data()
+    except (TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        _set_last_weather_error(str(exc))
+        return _unavailable_weather_data()

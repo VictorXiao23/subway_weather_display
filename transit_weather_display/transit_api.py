@@ -16,8 +16,14 @@ def get_train_data() -> List[TrainArrival]:
     return [
         TrainArrival(line="F", minutes=3, destination="Manhattan"),
         TrainArrival(line="F", minutes=8, destination="Manhattan"),
-        TrainArrival(line="F", minutes=16, destination="Manhattan"),
+        TrainArrival(line="F", minutes=5, destination="Brooklyn"),
+        TrainArrival(line="F", minutes=12, destination="Brooklyn"),
         TrainArrival(line="G", minutes=5, destination="Brooklyn"),
-        TrainArrival(line="G", minutes=12, destination="Brooklyn"),
-        TrainArrival(line="G", minutes=22, destination="Brooklyn"),
+        TrainArrival(line="G", minutes=11, destination="Brooklyn"),
+        TrainArrival(line="G", minutes=4, destination="Queens"),
+        TrainArrival(line="G", minutes=13, destination="Queens"),
+        TrainArrival(line="A", minutes=7, destination="Uptown"),
+        TrainArrival(line="A", minutes=15, destination="Uptown"),
+        TrainArrival(line="A", minutes=6, destination="Downtown"),
+        TrainArrival(line="A", minutes=14, destination="Downtown"),
     ]

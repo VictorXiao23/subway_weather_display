@@ -4,9 +4,36 @@ import os
 from pathlib import Path
 
 
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+ENV_FILE = PROJECT_ROOT / ".env"
+
+
+def _load_local_env(env_file: Path) -> None:
+    """Load simple KEY=VALUE pairs from a local .env file into os.environ."""
+
+    if not env_file.exists():
+        return
+
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'\"")
+
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_local_env(ENV_FILE)
+
+
 # Display configuration
-DISPLAY_WIDTH = 400
-DISPLAY_HEIGHT = 300
+DISPLAY_WIDTH = 800
+DISPLAY_HEIGHT = 400
 DISPLAY_BACKGROUND = "white"
 DISPLAY_FOREGROUND = "black"
 
@@ -16,30 +43,18 @@ TRAIN_REFRESH_INTERVAL_SECONDS = 60
 WEATHER_REFRESH_INTERVAL_SECONDS = 15 * 60
 
 # Layout configuration
-SCREEN_PADDING = 16
-SECTION_GAP = 10
-TRAIN_ROW_HEIGHT = 30
-FORECAST_ITEM_WIDTH = 62
-FORECAST_ITEM_GAP = 8
+SCREEN_PADDING = 24
+SECTION_GAP = 16
+TRAIN_ROW_HEIGHT = 40
+FORECAST_ITEM_WIDTH = 100
+FORECAST_ITEM_GAP = 12
 DIVIDER_THICKNESS = 1
 
 # Typography
-FONT_LARGE_SIZE = 30
-FONT_MEDIUM_SIZE = 18
-FONT_SMALL_SIZE = 14
+FONT_LARGE_SIZE = 44
+FONT_MEDIUM_SIZE = 26
+FONT_SMALL_SIZE = 18
 
 # Content limits
 MAX_TRAIN_ROWS = 3
-MAX_FORECAST_HOURS = 8
-
-# Weather API configuration
-METEOSOURCE_BASE_URL = "https://www.meteosource.com/api/v1/free/point"
-METEOSOURCE_API_KEY = os.getenv("METEOSOURCE_API_KEY", "")
-WEATHER_LAT = os.getenv("WEATHER_LAT", "40.6782")
-WEATHER_LON = os.getenv("WEATHER_LON", "-73.9442")
-WEATHER_TIMEZONE = os.getenv("WEATHER_TIMEZONE", "America/New_York")
-WEATHER_LANGUAGE = os.getenv("WEATHER_LANGUAGE", "en")
-WEATHER_UNITS = os.getenv("WEATHER_UNITS", "us")
-
-# Assets
-BASE_DIR = Path(__file__).resolve().parent
+MAX_FORECAST_HOURS = 6

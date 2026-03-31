@@ -25,9 +25,11 @@ def format_train_eta(minutes: int) -> str:
     return f"{minutes} min"
 
 
-def format_temperature(value: int) -> str:
+def format_temperature(value: int | None) -> str:
     """Render temperatures consistently across the UI."""
 
+    if value is None:
+        return "--"
     return f"{value}\N{DEGREE SIGN}"
 
 

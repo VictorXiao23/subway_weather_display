@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 try:
     from .config import (
@@ -36,6 +37,9 @@ class DataCache:
         self.weather: Optional[WeatherData] = None
         self.last_train_fetch = 0.0
         self.last_weather_fetch = 0.0
+
+
+NEW_YORK_TZ = ZoneInfo("America/New_York")
 
 
 def _should_refresh(last_fetch: float, interval_seconds: int, now: float) -> bool:
@@ -72,7 +76,7 @@ def build_display_data(cache: DataCache) -> DisplayData:
     loop_time = time.monotonic()
 
     return DisplayData(
-        timestamp=datetime.now(),
+        timestamp=datetime.now(NEW_YORK_TZ),
         trains=_get_cached_trains(cache, loop_time),
         weather=_get_cached_weather(cache, loop_time),
     )

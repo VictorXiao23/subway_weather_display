@@ -1,4 +1,4 @@
-"""UI rendering for the 400x300 monochrome e-paper display."""
+"""UI rendering for the e-paper display."""
 
 from __future__ import annotations
 
@@ -65,16 +65,21 @@ except ImportError:
 
 OUTER_MARGIN = 8
 FRAME_INSET = 4
-HEADER_HEIGHT = 38
-RIGHT_PANEL_WIDTH = 124
+HEADER_HEIGHT = 58
+RIGHT_PANEL_WIDTH = 270
 LEFT_PANEL_MIN_WIDTH = 0
-ROUTE_BADGE_SIZE = 34
+ROUTE_BADGE_SIZE = 58
 TRAIN_BLOCK_HEIGHT = 96
-TRAIN_BLOCK_GAP = 12
-WEATHER_ICON_SIZE = 30
-HOURLY_ROW_HEIGHT = 16
-TRAIN_ROW_SPACING = 24
-TRAIN_VALUE_FONT_SIZE = 22
+TRAIN_BLOCK_GAP = 10
+WEATHER_ICON_SIZE = 56
+HOURLY_ROW_HEIGHT = 30
+TRAIN_ROW_SPACING = 28
+TRAIN_VALUE_FONT_SIZE = 24
+WEATHER_VALUE_FONT_SIZE = 48
+WEATHER_DETAIL_FONT_SIZE = 22
+HEADER_VALUE_FONT_SIZE = 34
+HEADER_META_FONT_SIZE = 30
+TRAIN_DIRECTION_GAP = 18
 
 
 def _measure_text(
@@ -134,10 +139,11 @@ def _draw_route_badge(
 def _draw_cloud_icon(draw: ImageDraw.ImageDraw, x: int, y: int, size: int) -> None:
     """Draw a simple monochrome cloud icon."""
 
-    draw.arc((x + 2, y + 10, x + 16, y + 24), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
-    draw.arc((x + 10, y + 4, x + 25, y + 20), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
-    draw.arc((x + 20, y + 9, x + 34, y + 24), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
-    draw.line((x + 7, y + 24, x + 29, y + 24), fill=DISPLAY_FOREGROUND, width=2)
+    scale = max(1, size // 30)
+    draw.arc((x + 2 * scale, y + 10 * scale, x + 16 * scale, y + 24 * scale), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
+    draw.arc((x + 10 * scale, y + 4 * scale, x + 25 * scale, y + 20 * scale), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
+    draw.arc((x + 20 * scale, y + 9 * scale, x + 34 * scale, y + 24 * scale), 180, 360, fill=DISPLAY_FOREGROUND, width=2)
+    draw.line((x + 7 * scale, y + 24 * scale, x + 29 * scale, y + 24 * scale), fill=DISPLAY_FOREGROUND, width=2)
 
 
 def _draw_weather_icon(draw: ImageDraw.ImageDraw, x: int, y: int, condition: str) -> None:
@@ -145,22 +151,45 @@ def _draw_weather_icon(draw: ImageDraw.ImageDraw, x: int, y: int, condition: str
 
     normalized = condition.lower()
     if "sun" in normalized or "clear" in normalized:
-        center_x = x + 16
-        center_y = y + 16
-        draw.ellipse((center_x - 8, center_y - 8, center_x + 8, center_y + 8), outline=DISPLAY_FOREGROUND, width=2)
-        for offset in (-14, -10, 10, 14):
-            draw.line((center_x + offset, center_y - 1, center_x + offset + (2 if offset > 0 else -2), center_y - 1), fill=DISPLAY_FOREGROUND, width=2)
-            draw.line((center_x - 1, center_y + offset, center_x - 1, center_y + offset + (2 if offset > 0 else -2)), fill=DISPLAY_FOREGROUND, width=2)
+        scale = max(1, WEATHER_ICON_SIZE // 30)
+        center_x = x + (16 * scale)
+        center_y = y + (16 * scale)
+        draw.ellipse(
+            (center_x - 8 * scale, center_y - 8 * scale, center_x + 8 * scale, center_y + 8 * scale),
+            outline=DISPLAY_FOREGROUND,
+            width=2,
+        )
+        for offset in (-14 * scale, -10 * scale, 10 * scale, 14 * scale):
+            draw.line((center_x + offset, center_y - 1, center_x + offset + (3 if offset > 0 else -3), center_y - 1), fill=DISPLAY_FOREGROUND, width=2)
+            draw.line((center_x - 1, center_y + offset, center_x - 1, center_y + offset + (3 if offset > 0 else -3)), fill=DISPLAY_FOREGROUND, width=2)
         return
 
     if "rain" in normalized:
         _draw_cloud_icon(draw, x, y, WEATHER_ICON_SIZE)
-        draw.line((x + 12, y + 27, x + 9, y + 33), fill=DISPLAY_FOREGROUND, width=2)
-        draw.line((x + 19, y + 27, x + 16, y + 33), fill=DISPLAY_FOREGROUND, width=2)
-        draw.line((x + 26, y + 27, x + 23, y + 33), fill=DISPLAY_FOREGROUND, width=2)
+        scale = max(1, WEATHER_ICON_SIZE // 30)
+        draw.line((x + 12 * scale, y + 27 * scale, x + 9 * scale, y + 33 * scale), fill=DISPLAY_FOREGROUND, width=2)
+        draw.line((x + 19 * scale, y + 27 * scale, x + 16 * scale, y + 33 * scale), fill=DISPLAY_FOREGROUND, width=2)
+        draw.line((x + 26 * scale, y + 27 * scale, x + 23 * scale, y + 33 * scale), fill=DISPLAY_FOREGROUND, width=2)
         return
 
     _draw_cloud_icon(draw, x, y, WEATHER_ICON_SIZE)
+
+
+def _get_weather_symbol(condition: str) -> str:
+    """Return a compact forecast marker that works well in monochrome fonts."""
+
+    normalized = condition.lower()
+    if "sun" in normalized or "clear" in normalized:
+        return "o"
+    if "rain" in normalized or "shower" in normalized:
+        return "/"
+    if "snow" in normalized:
+        return "*"
+    if "storm" in normalized or "thunder" in normalized:
+        return "!"
+    if "part" in normalized:
+        return "o"
+    return "c"
 
 
 def _group_trains_by_line(trains) -> list[tuple[str, Sequence]]:
@@ -169,6 +198,15 @@ def _group_trains_by_line(trains) -> list[tuple[str, Sequence]]:
     grouped = OrderedDict()
     for train in trains:
         grouped.setdefault(train.line, []).append(train)
+    return list(grouped.items())
+
+
+def _group_arrivals_by_destination(arrivals: Sequence) -> list[tuple[str, Sequence]]:
+    """Group arrivals by destination while preserving order."""
+
+    grouped = OrderedDict()
+    for arrival in arrivals:
+        grouped.setdefault(arrival.destination, []).append(arrival)
     return list(grouped.items())
 
 
@@ -184,60 +222,80 @@ def _draw_train_section(
     body_font: ImageFont.ImageFont,
     small_font: ImageFont.ImageFont,
 ) -> None:
-    """Draw one grouped train block with a route badge and three arrivals."""
+    """Draw one grouped train block with both travel directions."""
 
     badge_center_x = x + (ROUTE_BADGE_SIZE // 2)
-    badge_center_y = y + 46
+    badge_center_y = y + 43
     _draw_route_badge(draw, badge_center_x, badge_center_y, line_label, badge_font)
 
-    meta_x = x + ROUTE_BADGE_SIZE + 16
-    draw.text((meta_x, y + 2), arrivals[0].destination, font=small_font, fill=DISPLAY_FOREGROUND)
+    content_x = x + ROUTE_BADGE_SIZE + 24
+    content_width = width - (content_x - x)
+    direction_groups = _group_arrivals_by_destination(arrivals)[:2]
+    direction_width = (content_width - TRAIN_DIRECTION_GAP) // 2
 
-    for index, train in enumerate(arrivals[:3]):
-        row_y = y + 18 + (index * TRAIN_ROW_SPACING)
-        minutes_value = "0" if train.minutes <= 0 else str(train.minutes)
-        minutes_width, _ = _measure_text(draw, minutes_value, body_font)
-        minutes_x = meta_x + 4
-        min_label_x = minutes_x + minutes_width + 2
-        arrival_text = format_arrival_clock(timestamp, train.minutes)
-        time_width, _ = _measure_text(draw, arrival_text, body_font)
+    for column_index, (destination, direction_arrivals) in enumerate(direction_groups):
+        column_x = content_x + column_index * (direction_width + TRAIN_DIRECTION_GAP)
+        draw.text((column_x, y + 2), destination, font=small_font, fill=DISPLAY_FOREGROUND)
 
-        draw.text((minutes_x, row_y), minutes_value, font=body_font, fill=DISPLAY_FOREGROUND)
-        draw.text((min_label_x, row_y + 5), "min", font=small_font, fill=DISPLAY_FOREGROUND)
-        draw.text((x + width - time_width, row_y), arrival_text, font=body_font, fill=DISPLAY_FOREGROUND)
+        for row_index, train in enumerate(direction_arrivals[:2]):
+            row_y = y + 28 + (row_index * TRAIN_ROW_SPACING)
+            minutes_value = "0" if train.minutes <= 0 else str(train.minutes)
+            minutes_width, _ = _measure_text(draw, minutes_value, body_font)
+            minutes_x = column_x
+            min_label_x = minutes_x + minutes_width + 4
+            arrival_text = format_arrival_clock(timestamp, train.minutes)
+            time_width, _ = _measure_text(draw, arrival_text, body_font)
+            time_x = column_x + direction_width - time_width
 
-    draw.line((meta_x, y + TRAIN_BLOCK_HEIGHT - 2, x + width, y + TRAIN_BLOCK_HEIGHT - 2), fill=DISPLAY_FOREGROUND, width=1)
+            draw.text((minutes_x, row_y), minutes_value, font=body_font, fill=DISPLAY_FOREGROUND)
+            draw.text((min_label_x, row_y + 5), "min", font=small_font, fill=DISPLAY_FOREGROUND)
+            draw.text((time_x, row_y), arrival_text, font=body_font, fill=DISPLAY_FOREGROUND)
+
+    draw.line((content_x, y + TRAIN_BLOCK_HEIGHT - 4, x + width, y + TRAIN_BLOCK_HEIGHT - 4), fill=DISPLAY_FOREGROUND, width=1)
 
 
 def _draw_hourly_list(
     draw: ImageDraw.ImageDraw,
     timestamp,
     temperatures: Sequence[int],
+    condition: str,
     x: int,
     y: int,
     width: int,
     label_font: ImageFont.ImageFont,
+    symbol_font: ImageFont.ImageFont,
     value_font: ImageFont.ImageFont,
 ) -> None:
-    """Draw a simple vertical list of four hourly temperatures."""
+    """Draw a simple vertical list of forecast times and temperatures."""
+
+    weather_symbol = _get_weather_symbol(condition)
 
     for index, temp in enumerate(temperatures[:MAX_FORECAST_HOURS]):
         row_y = y + (index * HOURLY_ROW_HEIGHT)
         hour_label = format_forecast_hour(timestamp, index + 1)
         temp_label = format_temperature(temp)
         draw.text((x, row_y), hour_label, font=label_font, fill=DISPLAY_FOREGROUND)
+        draw.text((x + 106, row_y - 2), weather_symbol, font=symbol_font, fill=DISPLAY_FOREGROUND)
         temp_width, _ = _measure_text(draw, temp_label, value_font)
-        draw.text((x + width - temp_width, row_y - 1), temp_label, font=value_font, fill=DISPLAY_FOREGROUND)
+        draw.text((x + width - temp_width, row_y - 2), temp_label, font=value_font, fill=DISPLAY_FOREGROUND)
 
 
-def _load_font(size: int) -> ImageFont.ImageFont:
+def _load_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
     """Load a clean sans-serif font with a safe fallback."""
 
-    preferred_fonts = (
-        "DejaVuSans.ttf",
-        "Arial.ttf",
-        "LiberationSans-Regular.ttf",
-    )
+    if bold:
+        preferred_fonts = (
+            "DejaVuSans-Bold.ttf",
+            "Arial Bold.ttf",
+            "LiberationSans-Bold.ttf",
+            "DejaVuSans.ttf",
+        )
+    else:
+        preferred_fonts = (
+            "DejaVuSans.ttf",
+            "Arial.ttf",
+            "LiberationSans-Regular.ttf",
+        )
 
     for font_name in preferred_fonts:
         try:
@@ -258,6 +316,11 @@ def render_ui(data: DisplayData) -> Image.Image:
     medium_font = _load_font(FONT_MEDIUM_SIZE)
     small_font = _load_font(FONT_SMALL_SIZE)
     train_value_font = _load_font(TRAIN_VALUE_FONT_SIZE)
+    weather_value_font = _load_font(WEATHER_VALUE_FONT_SIZE)
+    weather_detail_font = _load_font(WEATHER_DETAIL_FONT_SIZE)
+    header_value_font = _load_font(HEADER_VALUE_FONT_SIZE, bold=True)
+    header_meta_font = _load_font(HEADER_META_FONT_SIZE, bold=True)
+    weather_symbol_font = _load_font(WEATHER_DETAIL_FONT_SIZE)
 
     frame = (
         OUTER_MARGIN,
@@ -283,18 +346,18 @@ def render_ui(data: DisplayData) -> Image.Image:
     # Header
     date_text = format_date(data.timestamp)
     time_text = format_clock(data.timestamp).lower()
-    date_width, _ = _measure_text(draw, date_text, medium_font)
-    draw.text((inner_left + 10, inner_top + 8), date_text, font=medium_font, fill=DISPLAY_FOREGROUND)
-    divider_x = inner_left + 10 + date_width + 12
-    draw.line((divider_x, inner_top + 6, divider_x, header_bottom - 7), fill=DISPLAY_FOREGROUND, width=1)
-    draw.text((divider_x + 12, inner_top + 8), time_text, font=medium_font, fill=DISPLAY_FOREGROUND)
+    date_width, _ = _measure_text(draw, date_text, header_meta_font)
+    draw.text((inner_left + 18, inner_top + 10), date_text, font=header_meta_font, fill=DISPLAY_FOREGROUND)
+    divider_x = inner_left + 18 + date_width + 18
+    draw.line((divider_x, inner_top + 10, divider_x, header_bottom - 11), fill=DISPLAY_FOREGROUND, width=1)
+    draw.text((divider_x + 18, inner_top + 8), time_text, font=header_value_font, fill=DISPLAY_FOREGROUND)
 
     # Left transit panel
     trains_area_top = header_bottom + 10
     section_label = "Train Arrivals"
-    draw.text((inner_left + 10, trains_area_top), section_label, font=small_font, fill=DISPLAY_FOREGROUND)
+    draw.text((inner_left + 18, trains_area_top), section_label, font=small_font, fill=DISPLAY_FOREGROUND)
 
-    train_start_y = trains_area_top + 16
+    train_start_y = trains_area_top + 22
     grouped_trains = _group_trains_by_line(data.trains)
     for index, (line_label, arrivals) in enumerate(grouped_trains[:MAX_TRAIN_ROWS]):
         block_y = train_start_y + index * (TRAIN_BLOCK_HEIGHT + TRAIN_BLOCK_GAP)
@@ -303,43 +366,45 @@ def render_ui(data: DisplayData) -> Image.Image:
             line_label,
             arrivals,
             data.timestamp,
-            inner_left + 10,
+            inner_left + 18,
             block_y,
-            left_panel_width - 20,
+            left_panel_width - 36,
             badge_font=medium_font,
             body_font=train_value_font,
             small_font=small_font,
         )
 
     # Right weather rail
-    weather_left = right_panel_x + 10
-    weather_top = header_bottom + 10
+    weather_left = right_panel_x + 18
+    weather_top = header_bottom + 14
     draw.text((weather_left, weather_top), "Current Weather", font=small_font, fill=DISPLAY_FOREGROUND)
-    _draw_weather_icon(draw, weather_left + 3, weather_top + 18, data.weather.condition)
+    _draw_weather_icon(draw, weather_left + 6, weather_top + 28, data.weather.condition)
     draw.text(
-        (weather_left + 42, weather_top + 18),
+        (weather_left + 86, weather_top + 26),
         format_temperature(data.weather.temp),
-        font=large_font,
+        font=weather_value_font,
         fill=DISPLAY_FOREGROUND,
     )
     draw.text(
-        (weather_left + 42, weather_top + 49),
+        (weather_left + 86, weather_top + 76),
         data.weather.condition,
-        font=small_font,
+        font=weather_detail_font,
         fill=DISPLAY_FOREGROUND,
     )
 
-    hourly_top = weather_top + 86
-    draw.line((weather_left, hourly_top - 6, inner_right - 10, hourly_top - 6), fill=DISPLAY_FOREGROUND, width=1)
+    hourly_top = weather_top + 124
+    draw.line((weather_left, hourly_top - 10, inner_right - 18, hourly_top - 10), fill=DISPLAY_FOREGROUND, width=1)
     _draw_hourly_list(
         draw,
         data.timestamp,
         data.weather.hourly,
+        data.weather.condition,
         weather_left,
         hourly_top + 6,
-        RIGHT_PANEL_WIDTH - 20,
+        RIGHT_PANEL_WIDTH - 36,
         label_font=small_font,
-        value_font=small_font,
+        symbol_font=weather_symbol_font,
+        value_font=weather_detail_font,
     )
 
     # Small corner accents to echo the reference enclosure

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class TrainArrival:
 class WeatherData:
     """Represents the current weather and a short hourly forecast."""
 
-    temp: int
+    temp: Optional[int]
     condition: str
     hourly: List[int]
 
