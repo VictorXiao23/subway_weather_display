@@ -49,6 +49,8 @@ def get_train_data() -> List[TrainArrival]:
                     base = stop["stop_id"]
                     if not sid.startswith(base):
                         continue
+                    if stop["lines"] and route not in stop["lines"]:
+                        continue
                     direction = sid[len(base):]
                     if direction == "N":
                         destination = stop["north"]

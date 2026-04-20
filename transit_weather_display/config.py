@@ -72,25 +72,24 @@ MTA_FEED_URLS: list[str] = [
 
 
 def _parse_subway_stops(raw: str) -> list[dict]:
-    """Parse SUBWAY_STOPS env var.
-
-    Format: stop_id:north_label:south_label
-    Multiple stops separated by |
-    Example: F20:Manhattan:Brooklyn|A36:Uptown:Downtown
-    """
+    # Format: stop_id:north_label:south_label[:lines]
+    # lines is optional comma-separated list, e.g. "4,5" — omit to allow all lines
+    # Multiple stops separated by |
     stops = []
     for part in raw.split("|"):
         part = part.strip()
         if not part:
             continue
         fields = part.split(":")
-        if len(fields) != 3:
+        if len(fields) < 3:
             continue
-        stop_id, north, south = fields
+        stop_id, north, south = fields[0], fields[1], fields[2]
+        lines = {l.strip().upper() for l in fields[3].split(",")} if len(fields) >= 4 else set()
         stops.append({
             "stop_id": stop_id.strip(),
             "north": north.strip(),
             "south": south.strip(),
+            "lines": lines,
         })
     return stops
 
