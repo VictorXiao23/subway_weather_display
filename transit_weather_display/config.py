@@ -1,7 +1,6 @@
 """Application configuration constants."""
 
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -30,48 +29,6 @@ def _load_local_env(env_file: Path) -> None:
 
 
 _load_local_env(ENV_FILE)
-
-
-@dataclass(frozen=True)
-class DeviceConfig:
-    """Per-device configuration: which trains to show and where to fetch weather."""
-
-    name: str
-    weather_lat: str
-    weather_lon: str
-    weather_timezone: str
-    train_lines: list[str] = field(default_factory=list)
-
-
-# Named device configurations — add or edit entries here for each physical device.
-DEVICE_CONFIGS: dict[str, DeviceConfig] = {
-    "brooklyn": DeviceConfig(
-        name="Brooklyn",
-        weather_lat="40.6782",
-        weather_lon="-73.9442",
-        weather_timezone="America/New_York",
-        train_lines=["F", "G"],
-    ),
-    "manhattan": DeviceConfig(
-        name="Manhattan",
-        weather_lat="40.7580",
-        weather_lon="-73.9855",
-        weather_timezone="America/New_York",
-        train_lines=["A", "C", "E"],
-    ),
-}
-
-_DEFAULT_DEVICE_ID = "brooklyn"
-
-
-def get_device_config() -> DeviceConfig:
-    """Return the DeviceConfig selected by the DEVICE_ID environment variable."""
-
-    device_id = os.getenv("DEVICE_ID", _DEFAULT_DEVICE_ID).lower()
-    if device_id not in DEVICE_CONFIGS:
-        known = ", ".join(DEVICE_CONFIGS)
-        raise ValueError(f"Unknown DEVICE_ID={device_id!r}. Known devices: {known}")
-    return DEVICE_CONFIGS[device_id]
 
 
 # Display configuration
