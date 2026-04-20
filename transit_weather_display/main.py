@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 try:
@@ -38,7 +37,7 @@ class DataCache:
 
     def __init__(self) -> None:
         self.trains: list[TrainArrival] = []
-        self.weather: Optional[WeatherData] = None
+        self.weather: WeatherData | None = None
         self.last_train_fetch = 0.0
         self.last_weather_fetch = 0.0
 
@@ -58,7 +57,7 @@ def _get_cached_trains(
     """Refresh train data when its interval has elapsed."""
 
     if _should_refresh(cache.last_train_fetch, TRAIN_REFRESH_INTERVAL_SECONDS, now):
-        cache.trains = get_train_data(config)
+        cache.trains = get_train_data()
         cache.last_train_fetch = now
     return cache.trains
 

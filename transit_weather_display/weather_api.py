@@ -22,7 +22,6 @@ METEOSOURCE_BASE_URL = "https://www.meteosource.com/api/v1/free/point"
 METEOSOURCE_API_KEY = os.getenv("METEOSOURCE_API_KEY", "")
 WEATHER_LANGUAGE = os.getenv("WEATHER_LANGUAGE", "en")
 WEATHER_UNITS = os.getenv("WEATHER_UNITS", "us")
-LAST_WEATHER_ERROR = ""
 
 
 def _unavailable_weather_data() -> WeatherData:
@@ -33,13 +32,6 @@ def _unavailable_weather_data() -> WeatherData:
         condition="Unavailable",
         hourly=[],
     )
-
-
-def _set_last_weather_error(message: str) -> None:
-    """Store the most recent weather fetch failure for debugging."""
-
-    global LAST_WEATHER_ERROR
-    LAST_WEATHER_ERROR = message
 
 
 def _build_request_url(config: DeviceConfig) -> str:
@@ -109,19 +101,6 @@ def get_weather_data(config: DeviceConfig) -> WeatherData:
     """Return live weather data when configured, otherwise mark weather unavailable."""
 
     try:
-        weather = _fetch_live_weather(config)
-        _set_last_weather_error("")
-        return weather
-    except HTTPError as exc:
-        try:
-            error_body = exc.read().decode("utf-8", errors="replace")
-        except Exception:
-            error_body = ""
-        _set_last_weather_error(f"HTTP {exc.code}: {error_body or exc.reason}")
-        return _unavailable_weather_data()
-    except URLError as exc:
-        _set_last_weather_error(f"Network error: {exc.reason}")
-        return _unavailable_weather_data()
-    except (TimeoutError, ValueError, json.JSONDecodeError) as exc:
-        _set_last_weather_error(str(exc))
+        return _fetch_live_weather(config)
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
         return _unavailable_weather_data()

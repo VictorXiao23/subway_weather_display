@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from typing import Sequence
 
 from PIL import Image, ImageDraw, ImageFont
@@ -13,17 +12,11 @@ try:
         DISPLAY_FOREGROUND,
         DISPLAY_HEIGHT,
         DISPLAY_WIDTH,
-        DIVIDER_THICKNESS,
         FONT_LARGE_SIZE,
         FONT_MEDIUM_SIZE,
         FONT_SMALL_SIZE,
-        FORECAST_ITEM_GAP,
-        FORECAST_ITEM_WIDTH,
         MAX_FORECAST_HOURS,
         MAX_TRAIN_ROWS,
-        SCREEN_PADDING,
-        SECTION_GAP,
-        TRAIN_ROW_HEIGHT,
     )
     from .models import DisplayData
     from .utils import (
@@ -40,17 +33,11 @@ except ImportError:
         DISPLAY_FOREGROUND,
         DISPLAY_HEIGHT,
         DISPLAY_WIDTH,
-        DIVIDER_THICKNESS,
         FONT_LARGE_SIZE,
         FONT_MEDIUM_SIZE,
         FONT_SMALL_SIZE,
-        FORECAST_ITEM_GAP,
-        FORECAST_ITEM_WIDTH,
         MAX_FORECAST_HOURS,
         MAX_TRAIN_ROWS,
-        SCREEN_PADDING,
-        SECTION_GAP,
-        TRAIN_ROW_HEIGHT,
     )
     from models import DisplayData
     from utils import (
@@ -193,18 +180,14 @@ def _get_weather_symbol(condition: str) -> str:
 
 
 def _group_trains_by_line(trains) -> list[tuple[str, Sequence]]:
-    """Group train arrivals by line while preserving input order."""
-
-    grouped = OrderedDict()
+    grouped: dict[str, list] = {}
     for train in trains:
         grouped.setdefault(train.line, []).append(train)
     return list(grouped.items())
 
 
 def _group_arrivals_by_destination(arrivals: Sequence) -> list[tuple[str, Sequence]]:
-    """Group arrivals by destination while preserving order."""
-
-    grouped = OrderedDict()
+    grouped: dict[str, list] = {}
     for arrival in arrivals:
         grouped.setdefault(arrival.destination, []).append(arrival)
     return list(grouped.items())
@@ -320,7 +303,7 @@ def render_ui(data: DisplayData) -> Image.Image:
     weather_detail_font = _load_font(WEATHER_DETAIL_FONT_SIZE)
     header_value_font = _load_font(HEADER_VALUE_FONT_SIZE, bold=True)
     header_meta_font = _load_font(HEADER_META_FONT_SIZE, bold=True)
-    weather_symbol_font = _load_font(WEATHER_DETAIL_FONT_SIZE)
+    weather_symbol_font = weather_detail_font
 
     frame = (
         OUTER_MARGIN,
@@ -417,16 +400,5 @@ def render_ui(data: DisplayData) -> Image.Image:
     draw.line((frame[0], frame[3], frame[0] + accent, frame[3]), fill=DISPLAY_FOREGROUND, width=1)
     draw.line((frame[2] - accent, frame[3], frame[2], frame[3]), fill=DISPLAY_FOREGROUND, width=1)
     draw.line((frame[2], frame[3] - accent, frame[2], frame[3]), fill=DISPLAY_FOREGROUND, width=1)
-
-    # Use imported constants to keep layout centralized for later iteration.
-    _ = (
-        DISPLAY_HEIGHT,
-        DIVIDER_THICKNESS,
-        SCREEN_PADDING,
-        SECTION_GAP,
-        TRAIN_ROW_HEIGHT,
-        FORECAST_ITEM_WIDTH,
-        FORECAST_ITEM_GAP,
-    )
 
     return image

@@ -1,14 +1,11 @@
-"""Shared data models for the display application."""
+from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
 class TrainArrival:
-    """Represents a single train arrival prediction."""
-
     line: str
     minutes: int
     destination: str
@@ -16,17 +13,13 @@ class TrainArrival:
 
 @dataclass(frozen=True)
 class WeatherData:
-    """Represents the current weather and a short hourly forecast."""
-
-    temp: Optional[int]
+    temp: int | None
     condition: str
-    hourly: List[int]
+    hourly: list[int]
 
 
 @dataclass(frozen=True)
 class DisplayData:
-    """Top-level view model consumed by the renderer."""
-
     timestamp: datetime
-    trains: List[TrainArrival]
+    trains: list[TrainArrival]
     weather: WeatherData
