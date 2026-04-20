@@ -1,47 +1,73 @@
-"""Mock transit data provider."""
+"""Live MTA GTFS-Realtime transit data provider."""
 
 from __future__ import annotations
 
+import time
 from typing import List
 
+import requests
+from google.transit import gtfs_realtime_pb2
+
 try:
-    from .config import DeviceConfig
+    from .config import MTA_API_KEY, MTA_FEED_URLS, SUBWAY_STOPS
     from .models import TrainArrival
 except ImportError:
-    from config import DeviceConfig
+    from config import MTA_API_KEY, MTA_FEED_URLS, SUBWAY_STOPS
     from models import TrainArrival
 
 
-_MOCK_ARRIVALS: List[TrainArrival] = [
-    TrainArrival(line="F", minutes=3, destination="Manhattan"),
-    TrainArrival(line="F", minutes=8, destination="Manhattan"),
-    TrainArrival(line="F", minutes=5, destination="Brooklyn"),
-    TrainArrival(line="F", minutes=12, destination="Brooklyn"),
-    TrainArrival(line="G", minutes=5, destination="Brooklyn"),
-    TrainArrival(line="G", minutes=11, destination="Brooklyn"),
-    TrainArrival(line="G", minutes=4, destination="Queens"),
-    TrainArrival(line="G", minutes=13, destination="Queens"),
-    TrainArrival(line="A", minutes=7, destination="Uptown"),
-    TrainArrival(line="A", minutes=15, destination="Uptown"),
-    TrainArrival(line="A", minutes=6, destination="Downtown"),
-    TrainArrival(line="A", minutes=14, destination="Downtown"),
-    TrainArrival(line="C", minutes=4, destination="Uptown"),
-    TrainArrival(line="C", minutes=10, destination="Uptown"),
-    TrainArrival(line="C", minutes=3, destination="Downtown"),
-    TrainArrival(line="C", minutes=9, destination="Downtown"),
-    TrainArrival(line="E", minutes=6, destination="Uptown"),
-    TrainArrival(line="E", minutes=14, destination="Uptown"),
-]
+def _fetch_feed(url: str) -> gtfs_realtime_pb2.FeedMessage | None:
+    try:
+        resp = requests.get(url, headers={"x-api-key": MTA_API_KEY}, timeout=10)
+        resp.raise_for_status()
+    except requests.RequestException:
+        return None
+    feed = gtfs_realtime_pb2.FeedMessage()
+    feed.ParseFromString(resp.content)
+    return feed
 
 
-def get_train_data(config: DeviceConfig) -> List[TrainArrival]:
-    """Return mocked train arrival data filtered to the configured lines.
+def get_train_data() -> List[TrainArrival]:
+    now = time.time()
+    arrivals: list[TrainArrival] = []
 
-    When integrating a real MTA feed, replace the mock list with live API
-    calls — the filtering and return type stay the same.
-    """
+    for url in MTA_FEED_URLS:
+        feed = _fetch_feed(url)
+        if feed is None:
+            continue
 
-    if not config.train_lines:
-        return list(_MOCK_ARRIVALS)
-    allowed = set(config.train_lines)
-    return [t for t in _MOCK_ARRIVALS if t.line in allowed]
+        for entity in feed.entity:
+            if not entity.HasField("trip_update"):
+                continue
+            tu = entity.trip_update
+            route = tu.trip.route_id.upper()
+
+            for stu in tu.stop_time_update:
+                sid = stu.stop_id  # e.g. "F20N" or "F20S"
+
+                for stop in SUBWAY_STOPS:
+                    base = stop["stop_id"]
+                    if not sid.startswith(base):
+                        continue
+                    direction = sid[len(base):]
+                    if direction == "N":
+                        destination = stop["north"]
+                    elif direction == "S":
+                        destination = stop["south"]
+                    else:
+                        continue
+
+                    t = stu.arrival.time or stu.departure.time
+                    if not t:
+                        continue
+                    minutes = round((t - now) / 60)
+                    if minutes < 0:
+                        continue
+
+                    arrivals.append(TrainArrival(
+                        line=route,
+                        minutes=minutes,
+                        destination=destination,
+                    ))
+
+    return sorted(arrivals, key=lambda a: (a.line, a.minutes))
