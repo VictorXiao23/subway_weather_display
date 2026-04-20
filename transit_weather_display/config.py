@@ -58,3 +58,43 @@ FONT_SMALL_SIZE = 18
 # Content limits
 MAX_TRAIN_ROWS = 3
 MAX_FORECAST_HOURS = 6
+
+# MTA API
+MTA_API_KEY = os.environ.get("MTA_API_KEY", "")
+
+# Comma-separated feed URLs to fetch (paste directly from MTA developer portal)
+# Example: MTA_FEED_URLS=https://api-endpoint.mta.info/.../gtfs-bdfm,https://api-endpoint.mta.info/.../gtfs-g
+MTA_FEED_URLS: list[str] = [
+    u.strip()
+    for u in os.environ.get("MTA_FEED_URLS", "").split(",")
+    if u.strip()
+]
+
+
+def _parse_subway_stops(raw: str) -> list[dict]:
+    """Parse SUBWAY_STOPS env var.
+
+    Format: stop_id:north_label:south_label
+    Multiple stops separated by |
+    Example: F20:Manhattan:Brooklyn|A36:Uptown:Downtown
+    """
+    stops = []
+    for part in raw.split("|"):
+        part = part.strip()
+        if not part:
+            continue
+        fields = part.split(":")
+        if len(fields) != 3:
+            continue
+        stop_id, north, south = fields
+        stops.append({
+            "stop_id": stop_id.strip(),
+            "north": north.strip(),
+            "south": south.strip(),
+        })
+    return stops
+
+
+SUBWAY_STOPS = _parse_subway_stops(
+    os.environ.get("SUBWAY_STOPS", "F20:Manhattan:Brooklyn")
+)
