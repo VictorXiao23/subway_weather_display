@@ -9,9 +9,11 @@ from zoneinfo import ZoneInfo
 
 try:
     from .config import (
+        DeviceConfig,
         REFRESH_INTERVAL_SECONDS,
         TRAIN_REFRESH_INTERVAL_SECONDS,
         WEATHER_REFRESH_INTERVAL_SECONDS,
+        get_device_config,
     )
     from .display import render_ui
     from .models import DisplayData, TrainArrival, WeatherData
@@ -19,9 +21,11 @@ try:
     from .weather_api import get_weather_data
 except ImportError:
     from config import (
+        DeviceConfig,
         REFRESH_INTERVAL_SECONDS,
         TRAIN_REFRESH_INTERVAL_SECONDS,
         WEATHER_REFRESH_INTERVAL_SECONDS,
+        get_device_config,
     )
     from display import render_ui
     from models import DisplayData, TrainArrival, WeatherData
@@ -48,16 +52,20 @@ def _should_refresh(last_fetch: float, interval_seconds: int, now: float) -> boo
     return last_fetch == 0.0 or (now - last_fetch) >= interval_seconds
 
 
-def _get_cached_trains(cache: DataCache, now: float) -> list[TrainArrival]:
+def _get_cached_trains(
+    cache: DataCache, config: DeviceConfig, now: float
+) -> list[TrainArrival]:
     """Refresh train data when its interval has elapsed."""
 
     if _should_refresh(cache.last_train_fetch, TRAIN_REFRESH_INTERVAL_SECONDS, now):
-        cache.trains = get_train_data()
+        cache.trains = get_train_data(config)
         cache.last_train_fetch = now
     return cache.trains
 
 
-def _get_cached_weather(cache: DataCache, now: float) -> WeatherData:
+def _get_cached_weather(
+    cache: DataCache, config: DeviceConfig, now: float
+) -> WeatherData:
     """Refresh weather data when its interval has elapsed."""
 
     if cache.weather is None or _should_refresh(
@@ -65,30 +73,31 @@ def _get_cached_weather(cache: DataCache, now: float) -> WeatherData:
         WEATHER_REFRESH_INTERVAL_SECONDS,
         now,
     ):
-        cache.weather = get_weather_data()
+        cache.weather = get_weather_data(config)
         cache.last_weather_fetch = now
     return cache.weather
 
 
-def build_display_data(cache: DataCache) -> DisplayData:
+def build_display_data(cache: DataCache, config: DeviceConfig) -> DisplayData:
     """Fetch cached data sources and build the UI view model."""
 
     loop_time = time.monotonic()
 
     return DisplayData(
         timestamp=datetime.now(NEW_YORK_TZ),
-        trains=_get_cached_trains(cache, loop_time),
-        weather=_get_cached_weather(cache, loop_time),
+        trains=_get_cached_trains(cache, config, loop_time),
+        weather=_get_cached_weather(cache, config, loop_time),
     )
 
 
 def main() -> None:
     """Run the passive display refresh loop."""
 
+    config = get_device_config()
     cache = DataCache()
 
     while True:
-        display_data = build_display_data(cache)
+        display_data = build_display_data(cache, config)
         image = render_ui(display_data)
 
         # Placeholder for future hardware integration, e.g. epd.display(image)

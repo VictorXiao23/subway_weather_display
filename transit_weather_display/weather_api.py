@@ -11,18 +11,15 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 try:
-    from .config import MAX_FORECAST_HOURS
+    from .config import MAX_FORECAST_HOURS, DeviceConfig
     from .models import WeatherData
 except ImportError:
-    from config import MAX_FORECAST_HOURS
+    from config import MAX_FORECAST_HOURS, DeviceConfig
     from models import WeatherData
 
 
 METEOSOURCE_BASE_URL = "https://www.meteosource.com/api/v1/free/point"
 METEOSOURCE_API_KEY = os.getenv("METEOSOURCE_API_KEY", "")
-WEATHER_LAT = os.getenv("WEATHER_LAT", "40.6782")
-WEATHER_LON = os.getenv("WEATHER_LON", "-73.9442")
-WEATHER_TIMEZONE = os.getenv("WEATHER_TIMEZONE", "America/New_York")
 WEATHER_LANGUAGE = os.getenv("WEATHER_LANGUAGE", "en")
 WEATHER_UNITS = os.getenv("WEATHER_UNITS", "us")
 LAST_WEATHER_ERROR = ""
@@ -45,15 +42,15 @@ def _set_last_weather_error(message: str) -> None:
     LAST_WEATHER_ERROR = message
 
 
-def _build_request_url() -> str:
+def _build_request_url(config: DeviceConfig) -> str:
     """Build the Meteosource point forecast URL."""
 
     params = {
         "key": METEOSOURCE_API_KEY,
-        "lat": WEATHER_LAT,
-        "lon": WEATHER_LON,
+        "lat": config.weather_lat,
+        "lon": config.weather_lon,
         "sections": "current,hourly",
-        "timezone": WEATHER_TIMEZONE,
+        "timezone": config.weather_timezone,
         "language": WEATHER_LANGUAGE,
         "units": WEATHER_UNITS,
     }
@@ -86,14 +83,14 @@ def _parse_weather_payload(payload: dict[str, Any]) -> WeatherData:
     )
 
 
-def _fetch_live_weather() -> WeatherData:
+def _fetch_live_weather(config: DeviceConfig) -> WeatherData:
     """Fetch weather data from Meteosource."""
 
     if not METEOSOURCE_API_KEY:
         raise ValueError("Missing METEOSOURCE_API_KEY")
 
     request = Request(
-        _build_request_url(),
+        _build_request_url(config),
         headers={
             "Accept": "application/json",
             "User-Agent": "transit-weather-display/1.0",
@@ -108,11 +105,11 @@ def _fetch_live_weather() -> WeatherData:
     return _parse_weather_payload(payload)
 
 
-def get_weather_data() -> WeatherData:
+def get_weather_data(config: DeviceConfig) -> WeatherData:
     """Return live weather data when configured, otherwise mark weather unavailable."""
 
     try:
-        weather = _fetch_live_weather()
+        weather = _fetch_live_weather(config)
         _set_last_weather_error("")
         return weather
     except HTTPError as exc:
