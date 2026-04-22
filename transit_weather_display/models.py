@@ -9,6 +9,7 @@ class TrainArrival:
     line: str
     minutes: int
     destination: str
+    direction: str  # "N" or "S"
 
 
 @dataclass(frozen=True)

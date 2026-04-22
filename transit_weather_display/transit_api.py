@@ -70,6 +70,7 @@ def get_train_data() -> List[TrainArrival]:
                         line=route,
                         minutes=minutes,
                         destination=destination,
+                        direction=direction,
                     ))
 
     return sorted(arrivals, key=lambda a: (a.line, a.minutes))

@@ -1,3 +1,7 @@
 gtfs-realtime-bindings
 Pillow
 requests
+
+# Waveshare e-paper driver — install separately on the Raspberry Pi:
+# git clone https://github.com/waveshare/e-Paper
+# pip install ./e-Paper/RaspberryPi_JetsonNano/python/

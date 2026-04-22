@@ -5,6 +5,23 @@ from __future__ import annotations
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from PIL import Image
+
+try:
+    from waveshare_epd import epd7in5_V2 as _epd_module
+    _HARDWARE = True
+except ImportError:
+    _HARDWARE = False
+
+
+def _show(image: Image.Image) -> None:
+    if _HARDWARE:
+        epd = _epd_module.EPD()
+        epd.init()
+        epd.display(epd.getbuffer(image))
+        epd.sleep()
+    else:
+        image.show()
 
 try:
     from .config import (
@@ -75,8 +92,7 @@ def main() -> None:
         display_data = build_display_data(cache)
         image = render_ui(display_data)
 
-        # On hardware: replace with epd.display(image)
-        image.show()
+        _show(image)
         time.sleep(REFRESH_INTERVAL_SECONDS)
 
 
