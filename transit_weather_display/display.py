@@ -19,6 +19,7 @@ try:
         MAX_FORECAST_HOURS,
         MAX_TRAIN_ROWS,
     )
+    from .messages import get_message
     from .models import DisplayData
     from .utils import (
         format_arrival_clock,
@@ -40,6 +41,7 @@ except ImportError:
         MAX_FORECAST_HOURS,
         MAX_TRAIN_ROWS,
     )
+    from messages import get_message
     from models import DisplayData
     from utils import (
         format_arrival_clock,
@@ -370,6 +372,12 @@ def render_ui(data: DisplayData) -> Image.Image:
     divider_x = inner_left + 18 + date_width + 18
     draw.line((divider_x, inner_top + 10, divider_x, header_bottom - 11), fill=DISPLAY_FOREGROUND, width=1)
     draw.text((divider_x + 18, inner_top + 8), time_text, font=header_value_font, fill=DISPLAY_FOREGROUND)
+
+    message = get_message(data.timestamp)
+    if message:
+        message_font = _load_font(22)
+        msg_width, _ = _measure_text(draw, message, message_font)
+        draw.text((inner_right - 18 - msg_width, inner_top + 14), message, font=message_font, fill=DISPLAY_FOREGROUND)
 
     # Left transit panel — distribute blocks evenly across available height
     grouped_trains = _group_trains_by_line(data.trains)
